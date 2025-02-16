@@ -1,0 +1,32 @@
+# ChromaDB
+.chroma/
+chromadb/
+chroma_db/
+chroma_data/
+
+# In case you have environment variables or sensitive data
+.env
+
+# Common Python files to ignore
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.gradio/
+
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+tutor_env/
+ENV/
+.env/
+.venv/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo 

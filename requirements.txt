@@ -1,0 +1,10 @@
+youtube-transcript-api
+langchain
+langchain-openai
+openai
+langchain-community
+python-dotenv
+gradio
+chromadb
+tiktoken
+pytube
