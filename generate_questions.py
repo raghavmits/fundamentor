@@ -13,6 +13,50 @@ from langchain.prompts import PromptTemplate
 from config import CHROMA_SETTINGS, MODEL_CONFIG
 from typing import Optional
 
+QUESTION_PROMPT = """
+        You are an expert tutor evaluating a student's understanding of a lecture's **core concepts**. Your task is to generate **five well-structured, thought-provoking questions** that directly assess the student's grasp of **the key principles, theories, mechanisms, or frameworks** presented in the lecture.  
+
+        ### **Guidelines:**  
+        1. **Only focus on the core subject matter**—strictly avoid questions about research papers, teaching methods, quizzes, grading, assignments, course logistics, or any other administrative aspects.  
+        2. **Ask questions that test conceptual understanding** rather than simple recall. Your questions should assess:  
+        - **Fundamental theories, models, or frameworks** related to the lecture topic.  
+        - **Key concepts and principles** that drive understanding in the field.  
+        - **Applications of these concepts** in real-world or hypothetical scenarios.  
+        - **Comparisons and contrasts** between different theories, models, or approaches.  
+        - **Implications or consequences** of applying these concepts in practice.  
+        3. **Encourage higher-order thinking**—ask the student to **explain, analyze, compare, apply, or evaluate** ideas rather than memorize facts.  
+        4. **Ensure all questions are clear, precise, and directly relevant to the lecture's subject matter.** Avoid vague or overly broad questions.  
+        5. **Do NOT reference timestamps, slides, visuals, images, tables, or external sources.** The questions should be fully based on the lecture's spoken content.  
+
+        ### **Examples of Strong Questions (for different fields):**  
+        - **Biology:** "How does natural selection drive genetic variation, and what evidence supports this process?"  
+        - **Physics:** "What is the difference between classical and quantum mechanics in explaining particle behavior?"  
+        - **Computer Science:** "How do neural networks learn from data, and what are the limitations of backpropagation?"  
+        - **Economics:** "How does game theory explain strategic decision-making in competitive markets?"  
+        - **Philosophy:** "What are the key differences between deontological and consequentialist ethics, and how do they apply to real-world moral dilemmas?"  
+
+        ### **Output Format:**  
+        1. [First question]  
+        2. [Second question]  
+        3. [Third question]  
+        4. [Fourth question]  
+        5. [Fifth question]  
+
+        Now, generate five **challenging, insightful questions** that assess the student's understanding of the **core concepts** covered in the lecture.  
+         """
+
+KEY_TERMS_PROMPT = """
+    Identify and list only the **key terms** related to the **fundamental concepts** of the subject discussed in the lecture.  
+    - Focus strictly on **core theories, principles, models, and frameworks**.  
+    - Do **not** provide definitions, explanations, or examples.  
+    - Format the output as a **comma-separated list** of keywords.  
+    
+    Example Output:  
+    Neural Networks, Backpropagation, Attention Mechanism, Gradient Descent, Transformer Models
+    """
+
+
+
 class QuestionGenerator:
     def __init__(self):
         self.embeddings = OpenAIEmbeddings()
@@ -37,29 +81,7 @@ class QuestionGenerator:
         except Exception as e:
             raise Exception(f"Error extracting transcript: {str(e)}")
         
-    def get_transcript_using_langchain(self, video_url: str) -> Optional[str]:
-        """Get transcript using Langchain's YoutubeLoader"""
-        try:
-            # Initialize the YoutubeLoader
-            loader = YoutubeLoader.from_youtube_url(
-                video_url,
-                add_video_info=True,  # Adds title, description, etc.
-                language=["en"]  # Specify English language
-            )
-            
-            # Load the transcript
-            transcript_doc = loader.load()
-            
-            if not transcript_doc:
-                return None
-                
-            # Combine all transcript parts
-            full_transcript = " ".join([doc.page_content for doc in transcript_doc])
-            return full_transcript
-            
-        except Exception as e:
-            print(f"Error getting transcript via Langchain: {str(e)}")
-            return None
+    
 
     def create_vector_store(self, text: str) -> Chroma:
         """Create and return a vector store from the text"""
@@ -79,6 +101,12 @@ class QuestionGenerator:
         )
         
         return vector_store
+    
+    def get_key_terms(self, vector_store: Chroma) -> str:
+        """Get key terms from the vector store"""
+        retriever = vector_store.as_retriever(search_kwargs={"k": 3})
+        response = retriever.invoke({"query": KEY_TERMS_PROMPT})
+        return response["result"]
 
     def generate_questions(self, vector_store: Chroma) -> str:
         """Generate questions using the vector store"""
@@ -88,35 +116,12 @@ class QuestionGenerator:
             chain_type="stuff",
             retriever=vector_store.as_retriever(search_kwargs={"k": 3})
         )
-
-        # Question generation prompt
-        question_prompt = """
-        You are an expert tutor helping a student grasp the core concepts of a lecture. Your task is to generate five well-structured and insightful questions that assess the student’s understanding of the lecture’s fundamental ideas.
-
-        ### Guidelines:
-        1. Focus on the **main concepts and key takeaways**.
-        2. Do **not** reference **visual elements, images, graphs, or timestamps**.
-        3. Encourage critical thinking and understanding
-        4. Frame questions to encourage the student to **explain, analyze, compare, or apply** their knowledge.
-        5. Use a variety of question styles, including:
-        - **Conceptual** (e.g., "What is the main idea behind X?")
-        - **Why-based** (e.g., "Why is X important in Y?")
-        - **Application-based** (e.g., "How would you apply X in Y situation?")
-        - **Comparison-based** (e.g., "How does X compare to Y?")
-        - **Scenario-based** (e.g., "If X were changed, how would that impact Y?")
-
-        Format the output as:
-        1. [First question]
-        2. [Second question]
-        ...
-        5. [Fifth question]
-
-        Now, generate five challenging and insightful questions that align with these guidelines.
-        """
-
-
+        
         try:
-            questions = qa_chain.run(question_prompt)
+            response = qa_chain.invoke({"query": QUESTION_PROMPT})
+            questions = [q.strip() for q in response["result"].split("\n\n")]
+            # print(response)
+            # return response["result"]
             return questions
         except Exception as e:
             raise Exception(f"Error generating questions: {str(e)}")
@@ -124,13 +129,9 @@ class QuestionGenerator:
     def process_video(self, youtube_url: str) -> str:
         """Main process to generate questions from YouTube video"""
         try:
-            # Try getting transcript using Langchain first
-            transcript = self.get_transcript_using_langchain(youtube_url)
             
-            # If Langchain method fails, fall back to youtube_transcript_api
-            if transcript is None:
-                video_id = self.extract_video_id(youtube_url)
-                transcript = self.get_transcript(video_id)
+            video_id = self.extract_video_id(youtube_url)
+            transcript = self.get_transcript(video_id)
 
             # Create vector store
             vector_store = self.create_vector_store(transcript)

@@ -15,11 +15,12 @@ CHROMA_SETTINGS = {
 
 # Model Configuration
 MODEL_CONFIG = {
-    "model_name": "gpt-4",
-    "temperature": 0.7,
+    "model_name": "gpt-4o",
+    "temperature": 0.2,
     "max_tokens": 1000
 }
 
 # Text Splitting Configuration
 CHUNK_SIZE = 1000
-CHUNK_OVERLAP = 100
+CHUNK_OVERLAP = 200
+

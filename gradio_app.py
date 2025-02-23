@@ -1,18 +1,31 @@
 import gradio as gr
-from generate_questions import QuestionGenerator
+import requests
 
-
-def validate_youtube_url(url: str) -> bool:
-    """Validate YouTube URL format"""
-    return "youtube.com" in url or "youtu.be" in url
+# API endpoint
+API_URL = "http://0.0.0.0:8000"
 
 def generate_qa(youtube_url: str) -> str:
-    """Wrapper function for Gradio interface"""
-    if not validate_youtube_url(youtube_url):
-        return "Please enter a valid YouTube URL"
-    
-    generator = QuestionGenerator()
-    return generator.process_video(youtube_url)
+    """Wrapper function to call FastAPI backend"""
+    try:
+        response = requests.post(
+            f"{API_URL}/generate-questions",
+            json={"url": youtube_url}
+        )
+        
+        if response.status_code == 400:
+            return "Please enter a valid YouTube URL"
+        elif response.status_code != 200:
+            return f"Error: {response.json().get('detail', 'Unknown error occurred')}"
+        
+        # Format the list of questions into a numbered string
+        questions = response.json()["questions"]
+        formatted_questions = "\n\n".join(f"{q}" for q in questions)
+        return formatted_questions
+        
+    except requests.exceptions.ConnectionError:
+        return "Error: Could not connect to the backend server"
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 # Create Gradio interface
 iface = gr.Interface(
@@ -26,9 +39,9 @@ iface = gr.Interface(
         label="Generated Questions",
         lines=10
     ),
-    title="Personalized Tutor",
-    description="Enter a YouTube URL to generate questions based on its content.",
-    examples=[["https://www.youtube.com/watch?v=example"]],
+    title="Fundamentor: Your Personalized Tutor",
+    description="Enter a YouTube lecture URL to generate questions based on its content.",
+    
     theme=gr.themes.Soft()
 )
 
