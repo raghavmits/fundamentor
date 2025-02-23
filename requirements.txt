@@ -8,3 +8,8 @@ gradio
 chromadb
 tiktoken
 pytube
+fastapi
+uvicorn
+pydantic
+requests
+wikipedia

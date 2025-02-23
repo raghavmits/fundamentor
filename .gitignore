@@ -20,7 +20,7 @@ __pycache__/
 *.egg
 
 # Virtual Environment
-tutor_env/
+fundamentor_env/
 ENV/
 .env/
 .venv/
