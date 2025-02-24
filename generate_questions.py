@@ -45,16 +45,6 @@ QUESTION_PROMPT = """
         Now, generate five **challenging, insightful questions** that assess the student's understanding of the **core concepts** covered in the lecture.  
          """
 
-KEY_TERMS_PROMPT = """
-    Identify and list only the **key terms** related to the **fundamental concepts** of the subject discussed in the lecture.  
-    - Focus strictly on **core theories, principles, models, and frameworks**.  
-    - Do **not** provide definitions, explanations, or examples.  
-    - Format the output as a **comma-separated list** of keywords.  
-    
-    Example Output:  
-    Neural Networks, Backpropagation, Attention Mechanism, Gradient Descent, Transformer Models
-    """
-
 
 
 class QuestionGenerator:
@@ -102,11 +92,6 @@ class QuestionGenerator:
         
         return vector_store
     
-    def get_key_terms(self, vector_store: Chroma) -> str:
-        """Get key terms from the vector store"""
-        retriever = vector_store.as_retriever(search_kwargs={"k": 3})
-        response = retriever.invoke({"query": KEY_TERMS_PROMPT})
-        return response["result"]
 
     def generate_questions(self, vector_store: Chroma) -> str:
         """Generate questions using the vector store"""

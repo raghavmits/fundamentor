@@ -13,3 +13,4 @@ uvicorn
 pydantic
 requests
 wikipedia
+sqlmodel

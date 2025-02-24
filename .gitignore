@@ -1,8 +1,9 @@
-# ChromaDB
+# ChromaDB and database.db
 .chroma/
 chromadb/
 chroma_db/
 chroma_data/
+database.db
 
 # In case you have environment variables or sensitive data
 .env
@@ -29,4 +30,7 @@ ENV/
 .idea/
 .vscode/
 *.swp
-*.swo 
+*.swo
+
+#Special files to ignore
+test_gradio.py
