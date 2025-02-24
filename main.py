@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 from pydantic import BaseModel
-from generate_questions import QuestionGenerator
+from generate_qnf import QuestionFeedbackGenerator
 from datetime import datetime
 
 
@@ -23,6 +23,9 @@ class InteractionUpdate(SQLModel):
     answer: str | None = None
     feedback: str | None = None
 
+class FeedbackRequest(BaseModel):
+    interaction_id: int
+    answer: str
 
 # Pydantic model for request validation
 class YouTubeURL(BaseModel):
@@ -46,7 +49,7 @@ def get_session():
 SessionDep = Annotated[Session, Depends(get_session)]
 
 # Initialize QuestionGenerator
-generator = QuestionGenerator()
+generator = QuestionFeedbackGenerator()
 
 
 # Initialize FastAPI app
@@ -80,7 +83,6 @@ async def generate_questions(request: YouTubeURL, session: SessionDep):
         raise HTTPException(status_code=400, detail="Invalid YouTube URL")
     
     try:
-
         questions = generator.process_video(request.url)
 
         # Save questions to database
@@ -92,14 +94,53 @@ async def generate_questions(request: YouTubeURL, session: SessionDep):
 
         # Get all interactions from database
         interactions = session.exec(select(Interaction)).all()
-        print(f"Data Type of interactions: {type(interactions)} \n")
-        print(f"Data Type of interactions[0]: {type(interactions[0])} \n")
-        print(interactions)
-
         return interactions
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/get-questions", response_model=list[Interaction])
+async def get_questions(session: SessionDep, offset: int = 0,limit: Annotated[int, Query(le=10)] = 5):
+    """
+    Get all interactions from database
+    """
+    interactions = session.exec(select(Interaction).offset(offset).limit(limit)).all()
+    return interactions
+
+@app.get("/get-question/{question_id}", response_model=Interaction)
+async def get_question(question_id: int, session: SessionDep):
+    """
+    Get a specific interaction from database
+    """
+    interaction = session.get(Interaction, question_id)
+    if not interaction:
+        raise HTTPException(status_code=404, detail="Interaction not found")
+    return interaction
+
+@app.post("/generate-feedback", response_model=Interaction)
+async def generate_feedback(request: FeedbackRequest, session: SessionDep):
+    """
+    Generate feedback for a specific interaction and update the interaction
+    """
+    interaction = session.get(Interaction, request.interaction_id)
+    if not interaction:
+        raise HTTPException(status_code=404, detail="Interaction not found")
+    feedback = generator.generate_feedback(interaction.question, request.answer)
+    interaction.sqlmodel_update({"feedback": feedback})
+    session.add(interaction)
+    session.commit()
+    session.refresh(interaction)
+    return interaction
+
+@app.get("/get-feedback/{interaction_id}", response_model=Interaction)
+async def get_feedback(interaction_id: int, session: SessionDep):
+    """
+    Get feedback for a specific interaction
+    """
+    interaction = session.get(Interaction, interaction_id)
+    if not interaction:
+        raise HTTPException(status_code=404, detail="Interaction not found")
+    return interaction
 
 @app.get("/health")
 async def health_check():

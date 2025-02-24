@@ -45,9 +45,32 @@ QUESTION_PROMPT = """
         Now, generate five **challenging, insightful questions** that assess the student's understanding of the **core concepts** covered in the lecture.  
          """
 
+FEEDBACK_PROMPT = f"""
+            You are an expert tutor assessing a student's answer to a conceptual question. Your goal is to provide **detailed, constructive feedback** that helps the student improve their understanding.  
+
+            ### **Evaluation Criteria:**  
+            1. **Accuracy**: Does the response correctly address the key concepts in the question? Are there any factual errors or misconceptions?  
+            2. **Depth of Understanding**: Does the answer demonstrate **surface-level knowledge** or a **deep conceptual grasp** of the topic?  
+            3. **Clarity and Coherence**: Is the response well-structured, easy to follow, and logically reasoned?  
+            4. **Critical Thinking**: Does the student analyze, apply, or evaluate ideas instead of just recalling facts?  
+
+            ### **Your Response Should Include:**  
+            1. **Overall Assessment**: A summary of how well the student answered the question.  
+            2. **Strengths**: Identify what the student did well (e.g., clear explanation, strong reasoning, good use of examples).  
+            3. **Areas for Improvement**: Pinpoint specific weaknesses (e.g., missing key details, logical gaps, lack of depth).  
+            4. **Suggested Enhancements**: Provide actionable tips to refine their answer (e.g., rethinking assumptions, connecting ideas, providing more examples).  
+
+            ### **Example Feedback Format:**  
+            **Assessment:** Your response demonstrates a solid understanding of [core concept], but it lacks depth in explaining [specific aspect].  
+            **Strengths:** You correctly explained [key idea] and provided a relevant example.  
+            **Areas for Improvement:** You did not fully address [another aspect], and your reasoning needs more clarity.  
+            **Suggested Enhancements:** Try elaborating on [concept] with a real-world analogy to strengthen your argument.  
+
+            Now, evaluate the following response based on these guidelines: 
+            """
 
 
-class QuestionGenerator:
+class QuestionFeedbackGenerator:
     def __init__(self):
         self.embeddings = OpenAIEmbeddings()
         self.llm = ChatOpenAI(
@@ -132,3 +155,19 @@ class QuestionGenerator:
             # Clean up vector store
             if 'vector_store' in locals():
                 vector_store.persist()
+    
+    def generate_feedback(self, question: str, answer: str) -> str:
+        """Generate detailed, constructive feedback for a student's answer."""
+
+        FEEDBACK_PROMPT_WITH_QA = FEEDBACK_PROMPT + """**Question:** {question}  
+            **Student's Answer:** {answer}  
+            **Feedback:** """
+
+        try:
+            formatted_prompt = FEEDBACK_PROMPT_WITH_QA.format(question=question, answer=answer)
+            response = self.llm.invoke(formatted_prompt)
+            
+            return response.content
+        except Exception as e:
+            return f"Error: {str(e)}"
+

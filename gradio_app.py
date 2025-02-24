@@ -32,33 +32,45 @@ def generate_qa(youtube_url: str) -> str:
     except Exception as e:
         return f"Error: {str(e)}"
 
-
-def generate_feedback(answer, question_num):
-    # Placeholder feedback generation - in real application, this would be more sophisticated
-    feedback_options = {
-        1: ["Excellent analysis!", "Good attempt, but could be more detailed", "Consider revising your answer"],
-        2: ["Perfect understanding!", "On the right track, but needs more depth", "Review the concept again"],
-        3: ["Outstanding response!", "Partially correct, but needs clarification", "Try approaching from a different angle"],
-        4: ["Brilliant analysis!", "Good start, but expand your thinking", "Missing key points"],
-        5: ["Excellent reasoning!", "Heading in the right direction", "Important elements missing"]
-    }
+def get_questions(offset: int = 0, limit: int = 5):
+    """Wrapper function to call FastAPI backend"""
+    try:
+        response = requests.get(
+            f"{API_URL}/get-questions",
+            params={"offset": offset, "limit": limit}
+        )
+        
+        if response.status_code != 200:
+            print(response.json())                                                  # Remove this error later
+            return f"Error: {response.json().get('detail', 'Unknown error occurred')}"
+        
+        # Extract just the questions from the interactions
+        data = response.json()
+        questions = [interaction["question"] for interaction in data]
+        return questions
     
-    # Simple length-based feedback selection (replace with actual logic)
-    if len(answer) > 100:
-        return feedback_options[question_num][0]
-    elif len(answer) > 50:
-        return feedback_options[question_num][1]
-    else:
-        return feedback_options[question_num][2]
+    except Exception as e:
+        return f"Error: {str(e)}"
+    
 
-# Sample questions
-questions = [
-    "How does the geometric interpretation of a derivative help in understanding the concept of a tangent line to a curve, and why is this interpretation fundamental to the study of calculus?",
-    "How does artificial intelligence impact modern society?",
-    "What role does biodiversity play in ecosystem stability?",
-    "Explain the concept of sustainable development.",
-    "How do social media platforms influence human behavior?"
-]
+def generate_feedback(interaction_id, answer):
+    """Wrapper function to call FastAPI backend"""
+    try:
+        response = requests.post(
+            f"{API_URL}/generate-feedback",
+            json={"interaction_id": interaction_id, "answer": answer}
+        )
+
+        if response.status_code != 200:
+            return f"Error: {response.json().get('detail', 'Unknown error occurred')}"
+        
+        data = response.json()
+        print(data)
+        feedback = data["feedback"]
+        return feedback
+    
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 # Create Gradio interface with Blocks
 with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue")) as demo:
@@ -91,23 +103,25 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue")) as demo:
     qa_section = gr.Column(visible=False)
     with qa_section:
         gr.Markdown("## Let's assess your understanding of the lecture")
-
+        question_blocks = []  # Store question blocks for updating
+        
         # Create five question blocks
         for i in range(5):
             with gr.Group():
-                gr.HTML('<div style="margin-top: 1px;"></div>')   # Extra line above the question
-                gr.Markdown(f"### Question {i+1} : <span style='font-weight: normal; font-size: 16px;'>{questions[i]}</span>")
-                gr.HTML('<div style="margin-top: 1px;"></div>')   # Extra line below the question
+                gr.HTML('<div style="margin-top: 1px;"></div>')
+                question_md = gr.Markdown("") # Empty markdown to be filled later
+                question_blocks.append(question_md)
+                gr.HTML('<div style="margin-top: 1px;"></div>')
                 
                 with gr.Row():
                     answer_box = gr.Textbox(
                         label="Your Answer",
                         placeholder="Type your answer here...",
-                        lines=4
+                        lines=6
                     )
-                    feedback_box = gr.Dropdown(
-                        choices=None,
+                    feedback_box = gr.Textbox(
                         label="Feedback",
+                        lines=4,
                         interactive=False,
                         visible=False
                     )
@@ -117,8 +131,8 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue")) as demo:
                 # Create closure to maintain question number
                 def create_feedback_fn(question_num):
                     def feedback_fn(answer):
-                        feedback = generate_feedback(answer, question_num)
-                        return gr.Dropdown(choices=[feedback], value=feedback, visible=True)
+                        feedback = generate_feedback(question_num, answer)
+                        return gr.Textbox(value=feedback, visible=True)
                     return feedback_fn
                 
                 feedback_btn.click(
@@ -127,19 +141,26 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue")) as demo:
                     outputs=[feedback_box]
                 )
                 
-                gr.Markdown("---")  # Separator between questions
-    
+                gr.Markdown("---")
+
+    def load_assessment():
+        questions = get_questions(limit=5)
+        return [
+            gr.Column(visible=True),
+            *[f"### Question <span style='font-weight: normal; font-size: 16px;'>{q}</span>" for q in questions]
+        ]
+
     start_assessment_btn.click(
-        lambda: gr.Column(visible=True),
-        outputs=[qa_section]
+        fn=load_assessment,
+        outputs=[qa_section, *question_blocks]
     )
-
-
-
-
 
 if __name__ == "__main__":
     # Launch the interface
     demo.launch(share=True)
+
+
+
+
 
 
