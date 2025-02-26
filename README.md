@@ -18,7 +18,7 @@ The project consists of two main components:
 
 ## Prerequisites
 
-- Python 3.8+
+- Python 3.10+
 - OpenAI API key
 - YouTube Data API key (optional)
 
@@ -91,9 +91,6 @@ fundamentor/
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
-
-[Add your license here]
 
 ## Acknowledgments
 
@@ -103,4 +100,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Support
 
-For support, please open an issue in the GitHub repository or contact [your contact information].
+For support, please open an issue in the GitHub repository or contact raghavmittal.wbs@gmail.com
