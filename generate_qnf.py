@@ -14,7 +14,7 @@ from config import CHROMA_SETTINGS, MODEL_CONFIG
 from typing import Optional
 
 QUESTION_PROMPT = """
-        You are an expert tutor evaluating a student's understanding of a lecture's **core concepts**. Your task is to generate **five well-structured, thought-provoking questions** that directly assess the student's grasp of **the key principles, theories, mechanisms, or frameworks** presented in the lecture.  
+        You are an expert tutor evaluating a student's understanding of a lecture's **core concepts** by engaging with them in a viva (oral examination). Your task is to generate **five well-structured, thought-provoking questions** that directly assess the student's grasp of **the key principles, theories, mechanisms, or frameworks** presented in the lecture.  
 
         ### **Guidelines:**  
         1. **Only focus on the core subject matter**—strictly avoid questions about research papers, teaching methods, quizzes, grading, assignments, course logistics, or any other administrative aspects.  
@@ -26,7 +26,9 @@ QUESTION_PROMPT = """
         - **Implications or consequences** of applying these concepts in practice.  
         3. **Encourage higher-order thinking**—ask the student to **explain, analyze, compare, apply, or evaluate** ideas rather than memorize facts.  
         4. **Ensure all questions are clear, precise, and directly relevant to the lecture's subject matter.** Avoid vague or overly broad questions.  
-        5. **Do NOT reference timestamps, slides, visuals, images, tables, or external sources.** The questions should be fully based on the lecture's spoken content.  
+        5. **Do NOT reference timestamps, slides, visuals, images, tables, or external sources.** 
+        6. **Do NOT ask questions that require detailed calculations.**
+        7. **Do not ask questions that are too similar to each other.** The questions should be diverse and cover different aspects of the lecture.  
 
         ### **Examples of Strong Questions (for different fields):**  
         - **Biology:** "How does natural selection drive genetic variation, and what evidence supports this process?"  
@@ -48,6 +50,10 @@ QUESTION_PROMPT = """
 FEEDBACK_PROMPT = f"""
             You are an expert tutor assessing a student's answer to a conceptual question. Your goal is to provide **detailed, constructive feedback** that helps the student improve their understanding.  
 
+            ### **Guidelines:**  
+            1. **Do not ask the user to go beyond the scope of the question.**
+            2. **Make the feedback concise and to the point.**
+
             ### **Evaluation Criteria:**  
             1. **Accuracy**: Does the response correctly address the key concepts in the question? Are there any factual errors or misconceptions?  
             2. **Depth of Understanding**: Does the answer demonstrate **surface-level knowledge** or a **deep conceptual grasp** of the topic?  
@@ -55,15 +61,12 @@ FEEDBACK_PROMPT = f"""
             4. **Critical Thinking**: Does the student analyze, apply, or evaluate ideas instead of just recalling facts?  
 
             ### **Your Response Should Include:**  
-            1. **Overall Assessment**: A summary of how well the student answered the question.  
-            2. **Strengths**: Identify what the student did well (e.g., clear explanation, strong reasoning, good use of examples).  
-            3. **Areas for Improvement**: Pinpoint specific weaknesses (e.g., missing key details, logical gaps, lack of depth).  
-            4. **Suggested Enhancements**: Provide actionable tips to refine their answer (e.g., rethinking assumptions, connecting ideas, providing more examples).  
+            An overall assessment of the student's answer, followed by an analysis of the strengths, areas for improvement, and suggested enhancements. Limit the response to 60 to 75 words.
 
             ### **Example Feedback Format:**  
-            **Assessment:** Your response demonstrates a solid understanding of [core concept], but it lacks depth in explaining [specific aspect].  
-            **Strengths:** You correctly explained [key idea] and provided a relevant example.  
-            **Areas for Improvement:** You did not fully address [another aspect], and your reasoning needs more clarity.  
+            **Assessment:** Your response demonstrates a solid understanding of [core concept], but it lacks depth in explaining [specific aspect].  \n
+            **Strengths:** You correctly explained [key idea] and provided a relevant example.  \n
+            **Areas for Improvement:** You did not fully address [another aspect], and your reasoning needs more clarity.  \n
             **Suggested Enhancements:** Try elaborating on [concept] with a real-world analogy to strengthen your argument.  
 
             Now, evaluate the following response based on these guidelines: 

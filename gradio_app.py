@@ -41,7 +41,7 @@ def get_questions(offset: int = 0, limit: int = 5):
         )
         
         if response.status_code != 200:
-            print(response.json())                                                  # Remove this error later
+            # print(response.json())                                                  # Remove this later
             return f"Error: {response.json().get('detail', 'Unknown error occurred')}"
         
         # Extract just the questions from the interactions

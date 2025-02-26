@@ -14,3 +14,7 @@ pydantic
 requests
 wikipedia
 sqlmodel
+httpx<0.28
+arize-phoenix[evals]
+nest-asyncio
+openinference-instrumentation-langchain

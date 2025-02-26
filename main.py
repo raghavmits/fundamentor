@@ -1,4 +1,5 @@
 import uvicorn
+import json
 from typing import Annotated
 from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,7 +7,7 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 from pydantic import BaseModel
 from generate_qnf import QuestionFeedbackGenerator
 from datetime import datetime
-
+from pydantic.error_wrappers import ValidationError
 
 class InteractionBase(SQLModel):
     question: str
@@ -30,6 +31,38 @@ class FeedbackRequest(BaseModel):
 # Pydantic model for request validation
 class YouTubeURL(BaseModel):
     url: str
+
+class ToolCallFunction(BaseModel):
+    name: str
+    arguments: str | dict
+
+class ToolCall(BaseModel):
+    id: str
+    function: ToolCallFunction
+
+class Message(BaseModel):
+    toolCalls: list[ToolCall]
+
+class VapiRequest(BaseModel):
+    message: Message
+
+
+class QuestionResponse(BaseModel):
+    id: int
+    question_text: str
+
+    class Config:
+        orm_mode = True
+
+
+class FeedbackResponse(BaseModel):
+    id: int
+    question_text: str
+    answer_text: str
+    feedback_text: str
+
+    class Config:
+        orm_mode = True
 
 sqlite_file_name = "database.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
@@ -148,7 +181,135 @@ async def health_check():
     Health check endpoint
     """
     return {"status": "healthy"}
+
+@app.post("/get-questions-vapi")
+async def get_questions(request: VapiRequest, session: SessionDep):
+        
+    for tool_call in request.message.toolCalls:
+        if tool_call.function.name == "getAllQuestions":
+            # Get all questions from the interaction table and return them as a list of strings
+            interactions = session.exec(select(Interaction)).all()
+            
+            return {
+                'results': [
+                    {
+                        'toolCallId': tool_call.id,
+                        'result': [QuestionResponse(id=interaction.id, question_text=interaction.question).model_dump() for interaction in interactions]
+                    }
+                ]
+            }
+    else:
+        raise HTTPException(status_code=400, detail="Invalid request")
+
+@app.post("/get-question-vapi")
+async def get_question(request: VapiRequest, session: SessionDep):
+    for tool_call in request.message.toolCalls:
+        if tool_call.function.name == "getQuestion":
+            args = tool_call.function.arguments
+            break
+    else:
+        raise HTTPException(status_code=400, detail="Invalid request")
+    
+    if isinstance(args, str):
+        args = json.loads(args)
+
+    question_id = args.get('id')
+    
+    if not question_id:
+        raise HTTPException(status_code=400, detail="Missing question id")
+    
+    
+    interaction = session.get(Interaction, int(question_id))
+    print(f"Here is the requested question id: {question_id}")
+    print(f"Here is the requested question: {interaction.question}")
+    if not interaction:
+        raise HTTPException(status_code=404, detail="Question not found")
+    
+    return {
+        'results': [
+            {
+                'toolCallId': tool_call.id,
+                'result': QuestionResponse(id=interaction.id, question_text=interaction.question).model_dump()
+            }
+        ]
+    }
+
+@app.post("/create-answer")
+async def create_answer(request: VapiRequest, session: SessionDep):
+    for tool_call in request.message.toolCalls:
+        if tool_call.function.name == "createAnswer":
+            args = tool_call.function.arguments
+            break
+    else:
+        raise HTTPException(status_code=400, detail="Invalid request")
+    
+    if isinstance(args, str):
+        args = json.loads(args)
+
+    question_id = args.get('id')
+    
+    if not question_id:
+        raise HTTPException(status_code=400, detail="Missing question id")
+    
+    interaction = session.get(Interaction, int(question_id))
+    if not interaction:
+        raise HTTPException(status_code=404, detail="Question not found")
+    
+    answer_text = args.get('answer_text')
+    interaction.sqlmodel_update({"answer": answer_text})
+    session.add(interaction)
+    session.commit()
+    session.refresh(interaction)
+
+    return {
+        'results': [
+            {
+                'toolCallId': tool_call.id,
+                'result': 'success'
+            }
+        ]
+    }
+
+@app.post("/provide-feedback")
+async def provide_feedback(request: VapiRequest, session: SessionDep):
+    for tool_call in request.message.toolCalls:
+        if tool_call.function.name == "provideFeedback":
+            args = tool_call.function.arguments
+            break
+    else:
+        raise HTTPException(status_code=400, detail="Invalid request")
+    
+    if isinstance(args, str):
+        args = json.loads(args)
+
+    question_id = args.get('id')
+    
+    if not question_id:
+        raise HTTPException(status_code=400, detail="Missing question id")
+    
+    interaction = session.get(Interaction, int(question_id))
+    if not interaction:
+        raise HTTPException(status_code=404, detail="Question not found")
+    
+    feedback = generator.generate_feedback(interaction.question, interaction.answer)
+    interaction.sqlmodel_update({"feedback": feedback})
+    session.add(interaction)
+    session.commit()
+    session.refresh(interaction)
+
+    
+    print(f"Here is the feedback for Question {interaction.id}: {feedback}")
     
 
+    return {
+        'results': [
+            {
+                'toolCallId': tool_call.id,
+                'result': FeedbackResponse(id=interaction.id, question_text=interaction.question, answer_text=interaction.answer, feedback_text=interaction.feedback).model_dump()
+            }
+        ]
+    }
+
+        
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

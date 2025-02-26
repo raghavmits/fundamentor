@@ -34,3 +34,4 @@ ENV/
 
 #Special files to ignore
 test_gradio.py
+prompts.py
