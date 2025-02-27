@@ -7,7 +7,10 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 from pydantic import BaseModel
 from generate_qnf import QuestionFeedbackGenerator
 from datetime import datetime
-from pydantic.error_wrappers import ValidationError
+from phoenix.otel import register
+from dotenv import load_dotenv
+import os
+
 
 class InteractionBase(SQLModel):
     question: str
@@ -99,6 +102,19 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup():
+    load_dotenv()
+    PHOENIX_API_KEY = os.getenv("PHOENIX_API_KEY")
+    os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
+    os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
+    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
+
+    # Configure the Phoenix tracer
+    tracer_provider = register(
+        project_name="fundamentor-app",  # Your project name
+        auto_instrument=True  # Auto-instrument based on installed OI dependencies
+    )
+
+
     create_db_and_tables()
 
 
