@@ -110,8 +110,8 @@ def on_startup():
 
     # Configure the Phoenix tracer
     tracer_provider = register(
-        project_name="fundamentor-app",  # Your project name
-        auto_instrument=True  # Auto-instrument based on installed OI dependencies
+        project_name="fundamentor-app",  
+        auto_instrument=True  
     )
 
 

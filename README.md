@@ -2,6 +2,8 @@
 
 Fundamentor is an intelligent tutoring system that automatically generates questions and provides feedback based on YouTube educational content. It helps learners test their understanding of lecture materials through interactive Q&A sessions.
 
+🎬 [Watch the Demo Video](https://www.loom.com/share/a166e47200484891b22b80a9ad23394a?sid=48dd2590-c2eb-424a-8f46-ae65c0e361f3)
+
 ## Features
 
 - 🎥 YouTube Video Processing: Convert any educational YouTube video into an interactive learning session
